@@ -14,27 +14,21 @@ class NotificationService:
             return False
 
         try:
-            # 转换为中国时区时间
-            if change_record.created_at:
-                # 假设数据库中存储的是UTC时间，转换为北京时间
-                china_tz = timezone(timedelta(hours=8))
-                beijing_time = change_record.created_at.replace(tzinfo=timezone.utc).astimezone(china_tz)
-                created_time = beijing_time.strftime('%Y-%m-%d %H:%M:%S')
-            else:
-                # 如果没有时间，使用当前北京时间
-                china_tz = timezone(timedelta(hours=8))
-                current_time = datetime.now(china_tz)
-                created_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
+            # 使用当前北京时间
+            china_tz = timezone(timedelta(hours=8))
+            current_time = datetime.now(china_tz)
+            created_time = current_time.strftime('%Y-%m-%d %H:%M:%S')
 
-            content = f"网站监控告警\n\n网站: {website.name}\nURL: {website.url}\n时间: {created_time} (北京时间)"
+            # 构建通知内容
+            content = f"🚨 网站监控告警\n\n📍 网站: {website.name}\n🌐 URL: {website.url}\n⏰ 时间: {created_time}"
 
             if matched_keywords:
-                content += f"\n关键词: {', '.join(matched_keywords)}"
+                content += f"\n🔑 关键词匹配: {', '.join(matched_keywords)}"
             else:
-                content += f"\n监控: 全量监控"
+                content += f"\n📊 监控类型: HTML全量监控"
 
             if change_summary:
-                content += f"\n摘要: {change_summary}"
+                content += f"\n📝 变化摘要: {change_summary}"
 
             payload = {
                 "msgtype": "text",
@@ -43,36 +37,63 @@ class NotificationService:
                 }
             }
 
-            print(f"Sending webhook to: {self.config.WEBHOOK_URL}")
-            print(f"Payload: {json.dumps(payload, indent=2, ensure_ascii=False)}")
+            print(f"[WEBHOOK] Sending to: {self.config.WEBHOOK_URL}")
+            print(f"[WEBHOOK] Payload: {json.dumps(payload, indent=2, ensure_ascii=False)}")
 
-            response = requests.post(
-                self.config.WEBHOOK_URL,
-                json=payload,
-                headers={'Content-Type': 'application/json'},
-                timeout=10
-            )
+            # 发送请求，增加重试机制
+            max_retries = 3
+            for retry in range(max_retries):
+                try:
+                    response = requests.post(
+                        self.config.WEBHOOK_URL,
+                        json=payload,
+                        headers={
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'Website-Monitor/1.0'
+                        },
+                        timeout=15
+                    )
 
-            print(f"Response status: {response.status_code}")
-            print(f"Response body: {response.text}")
+                    print(f"[WEBHOOK] Response status: {response.status_code}")
+                    print(f"[WEBHOOK] Response body: {response.text}")
 
-            response.raise_for_status()
+                    if response.status_code == 200:
+                        # 检查企业微信返回的错误码
+                        try:
+                            resp_data = response.json()
+                            if resp_data.get('errcode', 0) == 0:
+                                print(f"[WEBHOOK] ✅ Notification sent successfully for {website.name}")
+                                return True
+                            else:
+                                print(f"[WEBHOOK] ❌ WeChat API error: {resp_data}")
+                                if retry < max_retries - 1:
+                                    print(f"[WEBHOOK] Retrying... ({retry + 1}/{max_retries})")
+                                    continue
+                                return False
+                        except json.JSONDecodeError:
+                            print(f"[WEBHOOK] ✅ Notification sent for {website.name} (non-JSON response)")
+                            return True
+                    else:
+                        if retry < max_retries - 1:
+                            print(f"[WEBHOOK] HTTP {response.status_code}, retrying... ({retry + 1}/{max_retries})")
+                            continue
+                        response.raise_for_status()
 
-            # 检查企业微信返回的错误码
-            try:
-                resp_data = response.json()
-                if resp_data.get('errcode', 0) != 0:
-                    print(f"WeChat API error: {resp_data}")
-                    return False
-                else:
-                    print(f"WeChat Work webhook notification sent successfully for {website.name}")
-                    return True
-            except json.JSONDecodeError:
-                print(f"WeChat Work webhook notification sent for {website.name} (non-JSON response)")
-                return True
+                except requests.exceptions.Timeout:
+                    print(f"[WEBHOOK] ⏰ Timeout error, retry {retry + 1}/{max_retries}")
+                    if retry == max_retries - 1:
+                        raise
+                except requests.exceptions.ConnectionError:
+                    print(f"[WEBHOOK] 🔌 Connection error, retry {retry + 1}/{max_retries}")
+                    if retry == max_retries - 1:
+                        raise
+
+            return False
 
         except Exception as e:
-            print(f"Failed to send webhook notification: {str(e)}")
+            print(f"[WEBHOOK] ❌ Failed to send notification: {str(e)}")
+            import traceback
+            print(f"[WEBHOOK] Error details: {traceback.format_exc()}")
             return False
 
     def send_notification(self, website, change_record, matched_keywords, change_summary=None):

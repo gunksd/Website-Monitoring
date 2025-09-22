@@ -3,13 +3,84 @@
 {% block title %}首页 - 网站监控系统{% endblock %}
 
 {% block content %}
+<!-- 统计信息面板 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="mb-0">{{ websites|length }}</h5>
+                        <small>总网站数</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-globe fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="mb-0">{{ websites|selectattr('is_active')|list|length }}</h5>
+                        <small>活跃监控</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-eye fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="mb-0" id="last-check-time">--</h5>
+                        <small>最后检查</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="mb-0">
+                            <span class="status-indicator status-active"></span>在线
+                        </h5>
+                        <small>系统状态</small>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-server fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1><i class="fas fa-tachometer-alt me-2"></i>监控概览</h1>
-            <a href="{{ url_for('main.add_website') }}" class="btn btn-primary">
-                <i class="fas fa-plus me-1"></i>添加网站
-            </a>
+            <h2><i class="fas fa-tachometer-alt me-2"></i>监控概览</h2>
+            <div>
+                <button class="btn btn-outline-primary me-2" onclick="refreshStatus()">
+                    <i class="fas fa-sync-alt me-1"></i>刷新状态
+                </button>
+                <a href="{{ url_for('main.add_website') }}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>添加网站
+                </a>
+            </div>
         </div>
     </div>
 </div>
@@ -86,6 +157,13 @@
 
 {% block scripts %}
 <script>
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    refreshStatus();
+    // 每30秒自动刷新状态
+    setInterval(refreshStatus, 30000);
+});
+
 function checkWebsite(websiteId) {
     const button = event.target;
     const originalText = button.innerHTML;
@@ -103,6 +181,8 @@ function checkWebsite(websiteId) {
     .then(data => {
         if (data.success) {
             showAlert('检查完成', 'success');
+            // 刷新状态
+            setTimeout(refreshStatus, 1000);
         } else {
             showAlert('检查失败: ' + (data.error || '未知错误'), 'danger');
         }
@@ -116,20 +196,42 @@ function checkWebsite(websiteId) {
     });
 }
 
+function refreshStatus() {
+    fetch('/api/system/status')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const statusData = data.data;
+
+                // 更新最后检查时间
+                const lastCheckElement = document.getElementById('last-check-time');
+                if (lastCheckElement) {
+                    lastCheckElement.textContent = statusData.last_check || '--';
+                }
+
+                // 可以添加更多状态更新逻辑
+                console.log('状态更新:', statusData);
+            }
+        })
+        .catch(error => {
+            console.error('状态更新失败:', error);
+        });
+}
+
 function showAlert(message, type) {
     const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+    alertDiv.style.zIndex = '9999';
     alertDiv.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
 
-    const container = document.querySelector('.container');
-    container.insertBefore(alertDiv, container.firstElementChild);
+    document.body.appendChild(alertDiv);
 
     setTimeout(() => {
         alertDiv.remove();
-    }, 5000);
+    }, 3000);
 }
 </script>
 {% endblock %}

@@ -1,7 +1,8 @@
-from flask import render_template, request, redirect, url_for, flash, send_from_directory
+from flask import render_template, request, redirect, url_for, flash, send_from_directory, jsonify
 from app.routes import main_bp
 from app import db
 from app.models import Website, ChangeRecord, Keyword
+from datetime import datetime
 import os
 
 @main_bp.route('/')
@@ -100,6 +101,61 @@ def changes_list():
                                     error_out=False
                                 )
     return render_template('changes_list.html', changes=changes)
+
+@main_bp.route('/logs')
+def logs():
+    """日志页面"""
+    return render_template('logs.html')
+
+@main_bp.route('/api/logs')
+def api_logs():
+    """获取最新日志"""
+    limit = request.args.get('limit', 50, type=int)
+
+    # 获取最新的变化记录作为日志
+    records = ChangeRecord.query.join(Website)\
+                                .order_by(ChangeRecord.created_at.desc())\
+                                .limit(limit).all()
+
+    logs = []
+    for record in records:
+        logs.append({
+            'id': record.id,
+            'timestamp': record.created_at.strftime('%Y-%m-%d %H:%M:%S') if record.created_at else '',
+            'website_name': record.website.name,
+            'website_url': record.website.url,
+            'change_type': record.change_type,
+            'notification_sent': record.notification_sent,
+            'matched_keywords': record.matched_keywords,
+            'created_at_iso': record.created_at.isoformat() if record.created_at else ''
+        })
+
+    return jsonify({
+        'success': True,
+        'logs': logs,
+        'total': len(logs)
+    })
+
+@main_bp.route('/api/system/status')
+def system_status():
+    """获取系统状态"""
+    active_websites = Website.query.filter_by(is_active=True).count()
+    total_websites = Website.query.count()
+
+    # 获取最后一次检查时间
+    last_record = ChangeRecord.query.order_by(ChangeRecord.created_at.desc()).first()
+    last_check = last_record.created_at if last_record else None
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'active_websites': active_websites,
+            'total_websites': total_websites,
+            'last_check': last_check.strftime('%H:%M:%S') if last_check else None,
+            'status': 'online',
+            'timestamp': datetime.utcnow().isoformat()
+        }
+    })
 
 @main_bp.route('/favicon.ico')
 def favicon():
