@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}{{ website.name }} - 网站监控系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-globe me-2"></i>{{ website.name }}</h1>
+            <div>
+                <button class="btn btn-outline-success" onclick="checkWebsite({{ website.id }})">
+                    <i class="fas fa-sync-alt me-1"></i>立即检查
+                </button>
+                <a href="{{ url_for('main.edit_website', website_id=website.id) }}" class="btn btn-outline-warning">
+                    <i class="fas fa-edit me-1"></i>编辑
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle me-2"></i>网站信息</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>URL:</strong><br>
+                   <a href="{{ website.url }}" target="_blank" class="text-break">{{ website.url }}</a>
+                </p>
+                <p><strong>状态:</strong>
+                   <span class="badge {% if website.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                       {% if website.is_active %}运行中{% else %}已暂停{% endif %}
+                   </span>
+                </p>
+                <p><strong>检查间隔:</strong> {{ website.check_interval // 60 }}分钟</p>
+                <p><strong>上次检查:</strong><br>
+                   {% if website.last_checked %}
+                       {{ website.last_checked.strftime('%Y-%m-%d %H:%M:%S') }}
+                   {% else %}
+                       <span class="text-muted">未检查</span>
+                   {% endif %}
+                </p>
+                <p><strong>创建时间:</strong><br>
+                   {{ website.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                </p>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-tags me-2"></i>关键词过滤</h5>
+            </div>
+            <div class="card-body">
+                {% if website.keywords %}
+                    {% for keyword in website.keywords %}
+                        <span class="badge bg-primary me-1 mb-1">{{ keyword.keyword }}</span>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted mb-0">未设置关键词过滤，将监控所有变化</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-history me-2"></i>变化记录</h5>
+            </div>
+            <div class="card-body">
+                {% if change_records %}
+                    <div class="list-group list-group-flush">
+                        {% for record in change_records %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">
+                                        {% if record.change_type == 'keyword_matched' %}
+                                            <i class="fas fa-star text-warning me-1"></i>关键词匹配
+                                        {% else %}
+                                            <i class="fas fa-edit text-info me-1"></i>内容变化
+                                        {% endif %}
+                                    </h6>
+                                    <p class="mb-1">
+                                        <small class="text-muted">
+                                            {{ record.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                        </small>
+                                    </p>
+                                    {% if record.matched_keywords %}
+                                        <p class="mb-1">
+                                            <strong>匹配关键词:</strong>
+                                            {% set keywords = record.matched_keywords | from_json %}
+                                            {% for keyword in keywords %}
+                                                <span class="badge bg-warning text-dark me-1">{{ keyword }}</span>
+                                            {% endfor %}
+                                        </p>
+                                    {% endif %}
+                                    {% if record.content_after %}
+                                        <p class="mb-1">
+                                            <small class="text-muted">内容预览:</small><br>
+                                            <small>{{ record.content_after[:200] }}{% if record.content_after|length > 200 %}...{% endif %}</small>
+                                        </p>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    {% if record.notification_sent %}
+                                        <span class="badge bg-success">已通知</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">未通知</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if record.diff_content %}
+                                <div class="mt-2">
+                                    <button class="btn btn-outline-secondary btn-sm"
+                                            type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#diff-{{ record.id }}">
+                                        <i class="fas fa-code me-1"></i>查看差异
+                                    </button>
+                                    <div class="collapse mt-2" id="diff-{{ record.id }}">
+                                        <pre class="bg-light p-2 small"><code>{{ record.diff_content }}</code></pre>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-3x mb-3"></i>
+                        <p>暂无变化记录</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function checkWebsite(websiteId) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
+    button.disabled = true;
+
+    fetch(`/api/websites/${websiteId}/check`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('检查完成，页面将刷新以显示最新结果', 'success');
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            showAlert('检查失败: ' + (data.error || '未知错误'), 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('检查失败: ' + error.message, 'danger');
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstElementChild);
+
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

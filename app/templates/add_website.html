@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}添加网站 - 网站监控系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-plus me-2"></i>添加新网站监控</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">网站名称 *</label>
+                        <input type="text" class="form-control" id="name" name="name" required
+                               placeholder="例如: 我的博客">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="url" class="form-label">网站URL *</label>
+                        <input type="url" class="form-control" id="url" name="url" required
+                               placeholder="https://example.com">
+                        <div class="form-text">请输入完整的URL，包括http://或https://</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="check_interval" class="form-label">检查间隔（秒）</label>
+                        <select class="form-select" id="check_interval" name="check_interval">
+                            <option value="30">30秒</option>
+                            <option value="60">1分钟</option>
+                            <option value="300" selected>5分钟</option>
+                            <option value="600">10分钟</option>
+                            <option value="1800">30分钟</option>
+                            <option value="3600">1小时</option>
+                            <option value="7200">2小时</option>
+                            <option value="21600">6小时</option>
+                            <option value="43200">12小时</option>
+                            <option value="86400">24小时</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="keywords" class="form-label">关键词过滤</label>
+                        <textarea class="form-control" id="keywords" name="keywords" rows="3"
+                                  placeholder="输入关键词，用逗号分隔，例如: 更新,发布,新版本"></textarea>
+                        <div class="form-text">
+                            只有当页面变化且包含这些关键词时才会发送通知。留空表示监控所有变化。
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>返回
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>添加网站
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle me-2"></i>使用说明</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success me-2"></i>系统会定时抓取网站内容并检测变化</li>
+                    <li><i class="fas fa-check text-success me-2"></i>支持关键词过滤，只有匹配关键词时才发送通知</li>
+                    <li><i class="fas fa-check text-success me-2"></i>可以随时调整检查间隔和关键词</li>
+                    <li><i class="fas fa-check text-success me-2"></i>支持邮件和Webhook通知</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

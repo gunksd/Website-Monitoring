@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}变化记录 - 网站监控系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1><i class="fas fa-history me-2"></i>变化记录</h1>
+        <p class="text-muted">查看所有网站的内容变化记录</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        {% if changes.items %}
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>时间</th>
+                                    <th>网站</th>
+                                    <th>类型</th>
+                                    <th>关键词</th>
+                                    <th>通知状态</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in changes.items %}
+                                <tr>
+                                    <td>
+                                        <small>{{ record.created_at.strftime('%m-%d %H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('main.website_detail', website_id=record.website.id) }}"
+                                           class="text-decoration-none">
+                                            {{ record.website.name }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if record.change_type == 'keyword_matched' %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-star me-1"></i>关键词匹配
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-edit me-1"></i>内容变化
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.matched_keywords %}
+                                            {% set keywords = record.matched_keywords | from_json %}
+                                            {% for keyword in keywords %}
+                                                <span class="badge bg-primary me-1">{{ keyword }}</span>
+                                            {% endfor %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if record.notification_sent %}
+                                            <span class="badge bg-success">已发送</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">未发送</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-outline-secondary btn-sm"
+                                                type="button"
+                                                data-bs-toggle="collapse"
+                                                data-bs-target="#detail-{{ record.id }}">
+                                            <i class="fas fa-eye me-1"></i>详情
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="collapse" id="detail-{{ record.id }}">
+                                    <td colspan="6" class="bg-light">
+                                        <div class="p-3">
+                                            {% if record.content_after %}
+                                                <h6>内容预览:</h6>
+                                                <p class="small text-muted">
+                                                    {{ record.content_after[:300] }}
+                                                    {% if record.content_after|length > 300 %}...{% endif %}
+                                                </p>
+                                            {% endif %}
+
+                                            {% if record.diff_content %}
+                                                <h6>变化差异:</h6>
+                                                <pre class="bg-white p-2 small border"><code>{{ record.diff_content }}</code></pre>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分页导航 -->
+            {% if changes.pages > 1 %}
+                <nav class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if changes.has_prev %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.changes_list', page=changes.prev_num) }}">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        {% for page_num in changes.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != changes.page %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="{{ url_for('main.changes_list', page=page_num) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ page_num }}</span>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link">…</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if changes.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('main.changes_list', page=changes.next_num) }}">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+
+        {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                    <h4>暂无变化记录</h4>
+                    <p class="text-muted">系统会在检测到网站内容变化时自动记录</p>
+                    <a href="{{ url_for('main.add_website') }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>添加网站监控
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

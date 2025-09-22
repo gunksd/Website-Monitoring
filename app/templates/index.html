@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 网站监控系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1><i class="fas fa-tachometer-alt me-2"></i>监控概览</h1>
+            <a href="{{ url_for('main.add_website') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>添加网站
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if websites %}
+<div class="row">
+    {% for website in websites %}
+    <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100 {% if website.is_active %}border-success{% else %}border-secondary{% endif %}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">{{ website.name }}</h5>
+                <span class="badge {% if website.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                    {% if website.is_active %}活跃{% else %}暂停{% endif %}
+                </span>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    <small class="text-muted">
+                        <i class="fas fa-link me-1"></i>
+                        <a href="{{ website.url }}" target="_blank" class="text-decoration-none">
+                            {{ website.url[:50] }}{% if website.url|length > 50 %}...{% endif %}
+                        </a>
+                    </small>
+                </p>
+                <p class="card-text">
+                    <i class="fas fa-clock me-1"></i>
+                    检查间隔: {{ website.check_interval // 60 }}分钟
+                </p>
+                <p class="card-text">
+                    <i class="fas fa-calendar me-1"></i>
+                    上次检查:
+                    {% if website.last_checked %}
+                        {{ website.last_checked.strftime('%Y-%m-%d %H:%M') }}
+                    {% else %}
+                        <span class="text-muted">未检查</span>
+                    {% endif %}
+                </p>
+                <p class="card-text">
+                    <i class="fas fa-tags me-1"></i>
+                    关键词: {{ website.keywords|length }}个
+                </p>
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="btn-group w-100" role="group">
+                    <a href="{{ url_for('main.website_detail', website_id=website.id) }}"
+                       class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-info-circle me-1"></i>详情
+                    </a>
+                    <a href="{{ url_for('main.edit_website', website_id=website.id) }}"
+                       class="btn btn-outline-warning btn-sm">
+                        <i class="fas fa-edit me-1"></i>编辑
+                    </a>
+                    <button class="btn btn-outline-success btn-sm" onclick="checkWebsite({{ website.id }})">
+                        <i class="fas fa-sync-alt me-1"></i>检查
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info text-center">
+            <i class="fas fa-info-circle me-2"></i>
+            还没有添加任何网站监控。
+            <a href="{{ url_for('main.add_website') }}" class="alert-link">立即添加</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function checkWebsite(websiteId) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>检查中...';
+    button.disabled = true;
+
+    fetch(`/api/websites/${websiteId}/check`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('检查完成', 'success');
+        } else {
+            showAlert('检查失败: ' + (data.error || '未知错误'), 'danger');
+        }
+    })
+    .catch(error => {
+        showAlert('检查失败: ' + error.message, 'danger');
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    const container = document.querySelector('.container');
+    container.insertBefore(alertDiv, container.firstElementChild);
+
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

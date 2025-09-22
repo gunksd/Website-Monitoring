@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}编辑网站 - 网站监控系统{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4><i class="fas fa-edit me-2"></i>编辑网站监控</h4>
+                <form method="POST" action="{{ url_for('main.delete_website', website_id=website.id) }}"
+                      onsubmit="return confirm('确定要删除这个网站监控吗？');" class="d-inline">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="fas fa-trash me-1"></i>删除
+                    </button>
+                </form>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">网站名称 *</label>
+                        <input type="text" class="form-control" id="name" name="name" required
+                               value="{{ website.name }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="url" class="form-label">网站URL *</label>
+                        <input type="url" class="form-control" id="url" name="url" required
+                               value="{{ website.url }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="check_interval" class="form-label">检查间隔（秒）</label>
+                        <select class="form-select" id="check_interval" name="check_interval">
+                            <option value="30" {% if website.check_interval == 30 %}selected{% endif %}>30秒</option>
+                            <option value="60" {% if website.check_interval == 60 %}selected{% endif %}>1分钟</option>
+                            <option value="300" {% if website.check_interval == 300 %}selected{% endif %}>5分钟</option>
+                            <option value="600" {% if website.check_interval == 600 %}selected{% endif %}>10分钟</option>
+                            <option value="1800" {% if website.check_interval == 1800 %}selected{% endif %}>30分钟</option>
+                            <option value="3600" {% if website.check_interval == 3600 %}selected{% endif %}>1小时</option>
+                            <option value="7200" {% if website.check_interval == 7200 %}selected{% endif %}>2小时</option>
+                            <option value="21600" {% if website.check_interval == 21600 %}selected{% endif %}>6小时</option>
+                            <option value="43200" {% if website.check_interval == 43200 %}selected{% endif %}>12小时</option>
+                            <option value="86400" {% if website.check_interval == 86400 %}selected{% endif %}>24小时</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                   {% if website.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">
+                                启用监控
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="keywords" class="form-label">关键词过滤</label>
+                        <textarea class="form-control" id="keywords" name="keywords" rows="3"
+                                  placeholder="输入关键词，用逗号分隔">{% for keyword in website.keywords %}{{ keyword.keyword }}{% if not loop.last %}, {% endif %}{% endfor %}</textarea>
+                        <div class="form-text">
+                            只有当页面变化且包含这些关键词时才会发送通知。
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('main.website_detail', website_id=website.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>返回
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>保存更改
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
